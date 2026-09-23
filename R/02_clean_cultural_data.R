@@ -3,7 +3,13 @@ library(janitor)
 library(here)
 
 # Load the Basilic dataset
-culture_raw <- read_csv2(here("data", "raw", "cultural_facilities.csv")) |> clean_names()
+culture_raw <- read_delim(
+  here("data", "raw", "cultural_facilities.csv"),
+  delim = ";",
+  locale = locale(decimal_mark = "."), # coordinates use . as the decimal separator
+  show_col_types = FALSE
+) |>
+  clean_names()
 
 # Select only useful columns
 culture <- culture_raw |>
@@ -124,6 +130,28 @@ culture <- culture |>
 stopifnot(!any(culture$cultural_category == "Other"))
 
 stopifnot(!any(is.na(culture$cultural_category)))
+
+# Fix known invalid coordinate in source dataset
+culture <- culture |>
+  mutate(
+    latitude = if_else(
+      name == "Temple du Foyer de l’âme" &
+        adresse == "7 bis r. du Pasteur-Wagner",
+      48.855833,
+      latitude
+    ),
+    longitude = if_else(
+      name == "Temple du Foyer de l’âme" &
+        adresse == "7 bis r. du Pasteur-Wagner",
+      2.369583,
+      longitude
+    )
+  )
+
+stopifnot(
+  all(culture$longitude > 2.20 & culture$longitude < 2.50),
+  all(culture$latitude > 48.80 & culture$latitude < 48.92)
+)
 
 # Save the dataset
 write_csv(culture, here( "data", "processed", "cultural_facilities_paris.csv"))
