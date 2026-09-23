@@ -1,13 +1,10 @@
-# History files
+# R / RStudio
 .Rhistory
 .Rapp.history
-
-# Session Data files
 .RData
 .RDataTmp
-
-# User-specific files
 .Ruserdata
+
 
 # Example code in package build process
 *-Ex.R
@@ -47,3 +44,30 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# R package/library state
+renv/library/
+renv/staging/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Quarto generated files
+.quarto/
+*_files/
+*_cache/
+
+
+# Raw datasets
+data/raw/*
+!data/raw/.gitkeep
+
+# Processed/generated datasets
+data/processed/*
+!data/processed/.gitkeep
