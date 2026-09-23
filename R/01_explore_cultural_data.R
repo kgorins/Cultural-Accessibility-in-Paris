@@ -9,7 +9,7 @@ culture_raw <- culture_raw |> clean_names()
 # glimpse(culture_raw)
 
 # Extract only the city of Paris entries
-culture_paris <- culture_raw |> filter(str_detect(commune, "Paris"))
+culture_paris <- culture_raw |> filter(departement =="Paris")
 
 # Plot and save types of facilities
 facility_counts <- culture_paris |> count(type_equipement_ou_lieu, sort = TRUE)
