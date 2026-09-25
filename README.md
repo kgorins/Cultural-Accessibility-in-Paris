@@ -1,10 +1,3 @@
----
-
-editor_options: 
-  markdown: 
-    wrap: 72
----
-
 # Cultural Accessibility and Socioeconomic Inequality in Paris
 
 A geospatial data-analysis project exploring how access to cultural facilities varies across Paris and whether these differences are associated with local socioeconomic conditions.
