@@ -1,0 +1,180 @@
+/* Light-touch refinements on top of the bslib theme. */
+
+:root {
+  --app-text: #1f1f1d;
+  --app-muted: #6b6a66;
+  --app-border: #e8e7e3;
+  --app-accent: #2a78d6;
+}
+
+.navbar {
+  border-bottom: 1px solid var(--app-border);
+}
+
+.app-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.app-title .fa {
+  color: var(--app-accent);
+  margin-right: 0.4rem;
+}
+
+/* Page intro */
+.page-intro {
+  margin: 0.25rem 0 1rem;
+}
+
+.page-intro h2 {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+}
+
+.page-intro .lead {
+  color: var(--app-muted);
+  font-size: 1.05rem;
+  max-width: 60rem;
+}
+
+/* Cards */
+.card {
+  box-shadow: 0 1px 2px rgba(31, 31, 29, 0.04);
+}
+
+.card-header {
+  font-weight: 600;
+  background: transparent;
+}
+
+.chart-note {
+  color: var(--app-muted);
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0;
+}
+
+/* Value boxes: neutral surfaces, accent icon */
+.headline-boxes .bslib-value-box {
+  border: 1px solid var(--app-border);
+}
+
+.headline-boxes .value-box-showcase {
+  color: var(--app-accent);
+  opacity: 0.85;
+}
+
+.headline-boxes .value-box-title {
+  color: var(--app-muted);
+  font-size: 0.85rem;
+}
+
+.headline-boxes .value-box-value {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.value-box-note {
+  color: var(--app-muted);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+/* Sidebar controls */
+.bslib-sidebar-layout > .sidebar .form-label,
+.bslib-sidebar-layout > .sidebar .control-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.bslib-sidebar-layout > .sidebar .checkbox,
+.bslib-sidebar-layout > .sidebar .radio {
+  font-size: 0.9rem;
+  margin-bottom: 0.1rem;
+}
+
+/* Compact stat list */
+.stat-list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.stat-list dt {
+  font-weight: 400;
+  color: var(--app-muted);
+  font-size: 0.85rem;
+}
+
+.stat-list dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.compact-list {
+  padding-left: 1.2rem;
+  margin-bottom: 0.75rem;
+}
+
+.compact-list li {
+  margin-bottom: 0.25rem;
+}
+
+/* Leaflet */
+.leaflet-container {
+  font-family: inherit;
+  background: #f2f1ee;
+}
+
+.leaflet .legend {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--app-text);
+  border-radius: 0.4rem;
+  box-shadow: 0 1px 4px rgba(31, 31, 29, 0.15);
+}
+
+.leaflet .legend-categories i {
+  border-radius: 50%;
+}
+
+.map-popup-title {
+  font-weight: 650;
+  margin-bottom: 0.35rem;
+  max-width: 280px;
+}
+
+.map-popup table th {
+  font-weight: 500;
+  color: var(--app-muted);
+  padding: 0.1rem 0.75rem 0.1rem 0;
+  vertical-align: top;
+}
+
+.map-popup table td {
+  padding: 0.1rem 0;
+}
+
+/* Methodology */
+.pipeline-steps li,
+.limitations li {
+  margin-bottom: 0.5rem;
+}
+
+.pipeline-steps li strong {
+  display: block;
+}
+
+.pipeline-steps li span {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
+/* Tables */
+table.dataTable {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}

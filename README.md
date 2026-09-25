@@ -2,6 +2,12 @@
 
 A geospatial data-analysis project exploring how access to cultural facilities varies across Paris and whether these differences are associated with local socioeconomic conditions.
 
+**Figure: Cultural facilities in Paris — interactive Facilities map**
+
+![Interactive Shiny app showing a clustered map of cultural facilities in Paris](output/figures/shiny_app_facilities.png)
+
+*This screenshot is from the project's interactive **Shiny** app. It shows all 3,752 cultural facilities, grouped into clusters and coloured by category. The sidebar filters by category, arrondissement and facility type. Other tabs map accessibility on the 200 m grid, compare poverty groups, plot socioeconomic relationships and let you browse the data. See [Interactive app](#interactive-app) for how to run it.*
+
 The project combines cultural-facility data from the French Ministry of Culture with the **INSEE Filosofi 200 m population grid** and uses **R** for data cleaning, geospatial analysis, statistics and visualization.
 
 ## Key findings
@@ -59,7 +65,29 @@ The analysis distinguishes between:
 
 ![Distance to nearest cultural facility](output/figures/distance_to_nearest_culture.png)
 
-The full analysis, maps, statistical results and methodological limitations are available in the [**Quarto report**](report/report.html).
+The full analysis, maps, statistical results and methodological limitations are available in the [**Quarto report**](reports/report.html).
+
+## Interactive app
+
+An interactive **Shiny** app sits on top of the pipeline outputs. It does not recompute any distances. It loads the processed datasets and lets you explore them through maps, charts and tables.
+
+Run the pipeline first (see [Reproducibility](#reproducibility)), then launch the app from the project root:
+
+``` r
+shiny::runApp("app")
+```
+
+| Tab | What it shows |
+|-----|---------------|
+| **Overview** | Headline figures, research questions and distance / supply by category |
+| **Facilities** | Clustered map of cultural facilities, filtered by category, arrondissement and facility type |
+| **Accessibility** | Map of the 200 m grid shaded by distance to the nearest facility, or by the number of facilities within 1 km / 500 m, for any category, with a histogram of the values |
+| **Inequality** | Population-weighted comparison across poverty quintiles, cell distributions, and a table comparing all categories |
+| **Relationships** | Exploratory scatterplots of socioeconomic indicators against accessibility, with Pearson r, p-value and R² |
+| **Data Explorer** | Searchable, filterable tables of both datasets with CSV export |
+| **Methodology** | Data sources, processing steps and limitations |
+
+The app requires `shiny`, `bslib`, `leaflet`, `plotly`, `DT`, `tidyverse`, `sf`, `here` and `scales`. Basemap tiles (Esri World Light Gray, OpenStreetMap) need an internet connection.
 
 ## Repository structure
 
@@ -72,7 +100,14 @@ paris-cultural-access/
 │   ├── 04_prepare_population.R
 │   ├── 05_calculate_accessibility.R
 │   ├── 06_category_accessibility.R
-│   └── 07_inequality_analysis.R
+│   ├── 07_inequality_analysis.R
+│   └── run_all.R
+│
+├── app/
+│   ├── app.R
+│   ├── R/            # data loading and shared helpers
+│   ├── modules/      # one Shiny module per tab
+│   └── www/          # stylesheet
 │
 ├── data/
 │   ├── raw/
@@ -82,7 +117,7 @@ paris-cultural-access/
 │   ├── figures/
 │   └── tables/
 │
-├── report/
+├── reports/
 │   ├── report.qmd
 │   └── report.html
 │
@@ -105,15 +140,17 @@ Large raw and processed datasets are not stored in the repository.
 
 To run all the scripts in order, run:
 
-``` bash
-source("run_all.R")
+``` r
+source("R/run_all.R")
 ```
 
 The final Quarto report can be rendered after the processing scripts have been run:
 
 ``` bash
-quarto render report/report.qmd
+quarto render reports/report.qmd
 ```
+
+The interactive app can then be launched with `shiny::runApp("app")`.
 
 ## Required input files
 
@@ -133,6 +170,7 @@ data/raw/
 - **sf**
 - **ggplot2**
 - **Quarto**
+- **Shiny**, **bslib**, **leaflet**, **plotly**, **DT** (interactive app)
 - geospatial data processing
 - statistical analysis and visualization
 
@@ -153,7 +191,7 @@ population-weighted socioeconomic comparisons
         ↓
 maps, tables and statistical analysis
         ↓
-Quarto report
+Quarto report + interactive Shiny app
 ```
 
 ## Data sources
