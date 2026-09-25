@@ -1,4 +1,4 @@
-# Cultural Accessibility and Socioeconomic Inequality in Paris
+# Mapping Cultural Accessibility in Paris
 
 A geospatial data-analysis project exploring how access to cultural facilities varies across Paris and whether these differences are associated with local socioeconomic conditions.
 
@@ -103,10 +103,27 @@ The analysis is organized as a sequence of R scripts:
 
 Large raw and processed datasets are not stored in the repository.
 
+To run all the scripts in order, run:
+
+``` bash
+source("run_all.R")
+```
+
 The final Quarto report can be rendered after the processing scripts have been run:
 
 ``` bash
 quarto render report/report.qmd
+```
+
+## Required input files
+
+Place the following source files in `data/raw/` before running the pipeline:
+
+``` text
+data/raw/
+├── cultural_facilities.csv
+├── carreaux_200m_met.gpkg
+└── arrondissements_fixed.geojson
 ```
 
 ## Tools
@@ -119,11 +136,35 @@ quarto render report/report.qmd
 - geospatial data processing
 - statistical analysis and visualization
 
+## Workflow
+
+``` text
+Basilic cultural data
+        ↓
+cleaning and categorization
+        ↓
+geocoded cultural facilities
+        ↓
+                           
+INSEE Filosofi 200 m grid -→ spatial accessibility metrics
+                           
+        ↓
+population-weighted socioeconomic comparisons
+        ↓
+maps, tables and statistical analysis
+        ↓
+Quarto report
+```
+
 ## Data sources
 
-- French Ministry of Culture — Basilic cultural-facility database
-- INSEE — Filosofi 200 m grid
-- Paris administrative boundaries
+This project uses publicly available datasets:
+
+- French Ministry of Culture — Basilic cultural facilities database
+- INSEE — Filosofi 2021, 200 m population and socioeconomic grid
+- Paris administrative boundary data
+
+Large source datasets are not committed to the repository.
 
 ## Limitations
 

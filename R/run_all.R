@@ -1,0 +1,6 @@
+source("R/02_clean_cultural_data.R")
+source("R/03_prepare_geography.R")
+source("R/04_prepare_population.R")
+source("R/05_calculate_accessibility.R")
+source("R/06_category_accessibility.R")
+source("R/07_inequality_analysis.R")
