@@ -1,0 +1,652 @@
+---
+title: "Cultural Accessibility and Socioeconomic Inequality in Paris"
+subtitle: "A geospatial analysis using open cultural data and the INSEE Filosofi 200 m grid"
+author: "Katerina G"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-summary: "Show code"
+    code-tools: true
+    embed-resources: true
+    fig-width: 8
+    fig-height: 6
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(sf)
+library(here)
+
+population_access <- st_read(
+  here(
+    "data",
+    "processed",
+    "population_accessibility_by_category.gpkg"
+  ),
+  quiet = TRUE
+)
+
+culture <- read_csv(
+  here(
+    "data",
+    "processed",
+    "cultural_facilities_paris.csv"
+  ),
+  show_col_types = FALSE
+)
+
+analysis <- population_access |>
+  filter(ind > 0)
+
+analysis <- analysis |>
+  mutate(
+    poverty_quintile = ntile(poverty_rate, 5),
+    poverty_group = factor(
+      poverty_quintile,
+      levels = 1:5,
+      labels = c(
+        "Lowest poverty",
+        "Low-medium",
+        "Middle",
+        "High-medium",
+        "Highest poverty"
+      )
+    )
+  )
+```
+
+# Introduction
+
+Paris has an exceptionally dense cultural landscape, ranging from museums, cinemas and theatres to libraries, bookshops, monuments and cultural institutions. However, a large number of cultural facilities at city level does not necessarily imply that they are distributed equally across space or that residents of different neighbourhoods experience the same level of access.
+
+This project investigates the geography of cultural accessibility in Paris and explores its relationship with local socioeconomic conditions.
+
+The analysis combines geocoded cultural-facility data with the INSEE Filosofi 200 m population grid. R is used throughout the project for data cleaning, geospatial processing, statistical analysis and visualization.
+
+# Research questions
+
+The project addresses four main questions:
+
+1.  How are cultural facilities distributed across Paris?
+2.  How far are residents from the nearest cultural facility?
+3.  How does accessibility differ between cultural categories?
+4.  Is cultural accessibility associated with local socioeconomic conditions?
+
+The objective is primarily descriptive and exploratory. Associations identified in this analysis should not be interpreted as causal effects.
+
+# Data
+
+## Cultural facilities
+
+The cultural-facility dataset is based on the French Ministry of Culture's Basilic database.
+
+After restricting the dataset to Paris, cleaning textual fields, removing duplicate physical locations and validating coordinates, the analytical dataset contains `r nrow(culture)` cultural facilities.
+
+The original facility classification was retained and was also grouped into broader analytical categories.
+
+```{r}
+#| label: tbl-cultural-categories
+
+culture |>
+  count(cultural_category, sort = TRUE) |>
+  knitr::kable(
+    col.names = c("Cultural category", "Number of facilities"),
+    caption = "Cultural facilities included in the analysis"
+  )
+```
+
+The distribution is highly uneven. Heritage locations represent the largest category, followed by press and stationery locations and books and reading facilities. Consequently, measures based on *all* cultural facilities are strongly influenced by these numerous categories.
+
+For this reason, the analysis considers both overall cultural accessibility and accessibility to individual categories.
+
+## Population and socioeconomic data
+
+Population and socioeconomic information comes from the INSEE Filosofi 200 m grid.
+
+The Paris subset contains `r nrow(analysis)` populated grid cells, representing approximately `r scales::comma(round(sum(analysis$ind, na.rm = TRUE)))` residents.
+
+Variables used in the exploratory socioeconomic analysis include:
+
+- population;
+- poverty rate;
+- mean living standard;
+- household characteristics;
+- an approximate social-housing indicator.
+
+The socioeconomic variables describe grid cells rather than individual residents. They must therefore be interpreted as characteristics of areas, not characteristics of every person living within them.
+
+## Geographic data
+
+Paris arrondissement boundaries are used to provide geographic context.
+
+One source boundary file contained a missing geometry for the 12th arrondissement. The missing geometry was replaced using an IGN-derived administrative boundary before the spatial analysis.
+
+# Data preparation
+
+The cultural dataset was restricted to Paris and cleaned before spatial analysis.
+
+Duplicate facilities were identified using their name, address and coordinates. Detailed facility types were grouped into nine broader categories:
+
+- Heritage
+- Press & stationery
+- Books & reading
+- Education & archives
+- Performing arts
+- Cinema
+- Museum
+- Parks & gardens
+- Arts & creation
+
+A known invalid coordinate in the source cultural dataset was also corrected explicitly during preprocessing rather than modifying the original raw file.
+
+The national INSEE grid was spatially restricted to cells intersecting the Paris boundary.
+
+# Geography of cultural facilities
+
+```{r}
+#| label: fig-cultural-facilities
+#| fig-cap: "Spatial distribution of cultural facilities included in the analysis."
+#| fig-width: 9
+#| fig-height: 8
+
+culture_sf <- st_as_sf(
+  culture,
+  coords = c("longitude", "latitude"),
+  crs = 4326,
+  remove = FALSE
+)
+
+culture_sf <- st_transform(
+  culture_sf,
+  st_crs(population_access)
+)
+
+ggplot() +
+  geom_sf(
+    data = population_access,
+    fill = NA,
+    color = "grey85",
+    linewidth = 0.1
+  ) +
+  geom_sf(
+    data = culture_sf,
+    aes(color = cultural_category),
+    size = 0.45,
+    alpha = 0.55
+  ) +
+  labs(
+    title = "Cultural facilities in Paris",
+    color = "Category"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+The map illustrates the high density of cultural locations in Paris but also shows why simple facility counts are insufficient. Different categories have very different frequencies and spatial distributions.
+
+# Measuring cultural accessibility
+
+Each 200 m INSEE grid cell is represented by its centroid.
+
+Accessibility is measured using three complementary indicators:
+
+1.  straight-line distance from the grid-cell centroid to the nearest cultural facility;
+2.  number of facilities within 500 m;
+3.  number of facilities within 1 km.
+
+All distance calculations are performed in a projected coordinate reference system so that distances are expressed in metres.
+
+The same procedure is repeated independently for each cultural category.
+
+## Overall accessibility
+
+The population-weighted mean distance to the nearest cultural facility is approximately `r round(weighted.mean(analysis$nearest_culture_m, analysis$ind, na.rm = TRUE))` metres.
+
+```{r}
+#| label: fig-nearest-culture
+#| fig-cap: "Distance from each 200 m population-grid cell to the nearest cultural facility."
+#| fig-width: 9
+#| fig-height: 8
+
+ggplot(population_access) +
+  geom_sf(
+    aes(fill = nearest_culture_m),
+    color = NA
+  ) +
+  labs(
+    title = "Distance to the nearest cultural facility",
+    subtitle = "Paris, 200 m population grid",
+    fill = "Distance (m)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+Overall nearest-facility distances are relatively short. However, this measure should not be interpreted as equivalent access to every form of culture: the overall indicator is strongly influenced by the very numerous heritage sites and other common facility types.
+
+## Accessibility differs strongly by category
+
+```{r}
+#| label: category-summary
+
+distance_columns <- analysis |>
+  st_drop_geometry() |>
+  select(starts_with("nearest_") & ends_with("_m"))
+
+category_summary <- tibble(
+  category = names(distance_columns),
+  median_distance_m = map_dbl(
+    distance_columns,
+    ~ median(.x, na.rm = TRUE)
+  )
+) |>
+  mutate(
+    category = category |>
+      str_remove("^nearest_") |>
+      str_remove("_m$") |>
+      str_replace_all("_", " ") |>
+      str_to_title()
+  ) |>
+  filter(category != "Culture")
+```
+
+```{r}
+#| label: fig-category-distance
+#| fig-cap: "Median distance to the nearest facility by cultural category."
+
+category_summary |>
+  ggplot(
+    aes(
+      x = reorder(category, median_distance_m),
+      y = median_distance_m
+    )
+  ) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Accessibility differs substantially by cultural category",
+    x = NULL,
+    y = "Median distance (m)"
+  ) +
+  theme_minimal()
+```
+
+The differences between categories demonstrate why cultural accessibility cannot be represented adequately by a single measure.
+
+For example, facilities related to books and reading are considerably more numerous than arts-and-creation facilities or parks included in the source dataset. Accessibility to these categories therefore operates at very different spatial scales.
+
+# Socioeconomic inequalities
+
+## Poverty groups
+
+To explore socioeconomic differences, populated grid cells are divided into five groups according to their poverty rate.
+
+The quintiles contain approximately equal numbers of **grid cells**, rather than equal numbers of residents. Accessibility statistics within each group are then weighted by population.
+
+```{r}
+#| label: poverty-summary
+
+poverty_access_summary <- analysis |>
+  st_drop_geometry() |>
+  group_by(poverty_group) |>
+  summarise(
+    cells = n(),
+    population = sum(ind, na.rm = TRUE),
+    mean_distance_m = weighted.mean(
+      nearest_culture_m,
+      w = ind,
+      na.rm = TRUE
+    ),
+    mean_facilities_1km = weighted.mean(
+      culture_within_1000m,
+      w = ind,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  )
+
+poverty_access_summary |>
+  mutate(
+    population = round(population),
+    mean_distance_m = round(mean_distance_m, 1),
+    mean_facilities_1km = round(mean_facilities_1km, 1)
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "Poverty group",
+      "Grid cells",
+      "Population",
+      "Mean distance (m)",
+      "Mean facilities within 1 km"
+    ),
+    caption = "Population-weighted cultural accessibility by poverty group"
+  )
+```
+
+```{r}
+#| label: fig-poverty-distance
+#| fig-cap: "Population-weighted mean distance to the nearest cultural facility by poverty group."
+
+ggplot(
+  poverty_access_summary,
+  aes(
+    x = poverty_group,
+    y = mean_distance_m
+  )
+) +
+  geom_col() +
+  labs(
+    title = "Overall cultural accessibility by poverty level",
+    subtitle = "Population-weighted mean distance to nearest cultural facility",
+    x = NULL,
+    y = "Mean distance (m)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 25, hjust = 1)
+  )
+```
+
+The relationship is not monotonic.
+
+The middle poverty group has the shortest population-weighted mean distance to any cultural facility, at approximately **107 m**, followed by the low-medium group at approximately **113 m**.
+
+Both extremes have longer distances: approximately **158 m** in the lowest-poverty group and **154 m** in the highest-poverty group.
+
+The number of facilities within 1 km shows a similar non-linear pattern. The middle group has approximately **133 facilities within 1 km** on average, compared with approximately **98** for the lowest-poverty group and only **74** for the highest-poverty group.
+
+These results do not support a simple linear interpretation in which accessibility consistently decreases as poverty increases.
+
+# Accessibility by cultural category
+
+To examine whether the overall measure hides differences between forms of culture, nearest-facility distances are compared separately by category.
+
+```{r}
+#| label: category-poverty-data
+
+distance_long <- analysis |>
+  st_drop_geometry() |>
+  select(
+    idcar_200m,
+    ind,
+    poverty_group,
+    starts_with("nearest_") & ends_with("_m")
+  ) |>
+  pivot_longer(
+    cols = starts_with("nearest_") & ends_with("_m"),
+    names_to = "category",
+    values_to = "distance_m"
+  ) |>
+  mutate(
+    category = category |>
+      str_remove("^nearest_") |>
+      str_remove("_m$") |>
+      str_replace_all("_", " ") |>
+      str_to_title()
+  )
+
+category_poverty_summary <- distance_long |>
+  group_by(poverty_group, category) |>
+  summarise(
+    population = sum(ind, na.rm = TRUE),
+    mean_distance_m = weighted.mean(
+      distance_m,
+      w = ind,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  )
+```
+
+```{r}
+#| label: fig-category-poverty
+#| fig-cap: "Population-weighted mean distance by poverty group and cultural category."
+#| fig-width: 10
+#| fig-height: 9
+
+category_poverty_summary |>
+  filter(category != "Culture") |>
+  ggplot(
+    aes(
+      x = poverty_group,
+      y = mean_distance_m
+    )
+  ) +
+  geom_col() +
+  facet_wrap(
+    ~ category,
+    scales = "free_y"
+  ) +
+  labs(
+    title = "Socioeconomic patterns differ between cultural categories",
+    x = NULL,
+    y = "Population-weighted mean distance (m)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 7
+    )
+  )
+```
+
+The category-specific results reveal substantially more complex patterns than the overall accessibility indicator.
+
+Residents of the highest-poverty cells have comparatively long mean distances to several categories. Their population-weighted mean distance is approximately **1,044 m to a museum**, compared with about **865 m** in the lowest-poverty group and **806–817 m** in the low-medium and middle groups.
+
+The highest-poverty group also has the greatest mean distance to the parks-and-gardens locations represented in the dataset, at approximately **3.85 km**. This result should be interpreted cautiously because only a small number of parks are represented by this cultural dataset.
+
+For heritage, the highest-poverty group has a mean distance of approximately **310 m**, compared with approximately **195–207 m** for the middle groups.
+
+Books-and-reading facilities show another non-linear pattern. The middle group has the shortest mean distance, approximately **202 m**, while the lowest-poverty group has the longest, approximately **360 m**.
+
+Performing arts show a different pattern again: mean distance declines from approximately **741 m** in the lowest-poverty group to approximately **560 m** in the highest-poverty group.
+
+Arts-and-creation facilities also show shorter distances for the highest-poverty group than for the lowest-poverty group. However, this category contains very few facilities, making strong conclusions inappropriate.
+
+Overall, the category-level results do not indicate a single socioeconomic gradient shared by all forms of cultural infrastructure. Instead, relationships vary substantially according to the type of cultural facility.
+
+# Focus on cinema accessibility
+
+Cinema provides a useful case study because it is a clearly identifiable cultural category with substantially more observations than some of the smallest categories.
+
+```{r}
+#| label: fig-cinema-map
+#| fig-cap: "Distance to the nearest cinema across the Paris 200 m grid."
+#| fig-width: 9
+#| fig-height: 8
+
+ggplot(population_access) +
+  geom_sf(
+    aes(fill = nearest_cinema_m),
+    color = NA
+  ) +
+  labs(
+    title = "Distance to the nearest cinema",
+    subtitle = "Paris, 200 m population grid",
+    fill = "Distance (m)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+## Living standard and cinema distance
+
+```{r}
+#| label: cinema-correlation
+
+cinema_correlation <- cor.test(
+  analysis$mean_living_standard,
+  analysis$nearest_cinema_m,
+  use = "complete.obs"
+)
+
+cinema_correlation
+```
+
+```{r}
+#| label: fig-cinema-income
+
+ggplot(
+  analysis,
+  aes(
+    x = mean_living_standard,
+    y = nearest_cinema_m
+  )
+) +
+  geom_point(alpha = 0.25) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE
+  ) +
+  labs(
+    title = "Living standard and cinema accessibility",
+    x = "Mean living standard",
+    y = "Distance to nearest cinema (m)"
+  ) +
+  theme_minimal()
+```
+
+The Pearson correlation is **r = `r round(unname(cinema_correlation$estimate), 3)`** with a p-value of **`r format.pval(cinema_correlation$p.value, digits = 3)`**.
+
+The association is therefore negative but very weak: cells with higher mean living standards tend to be slightly closer to cinemas, but the magnitude of the relationship is small.
+
+The squared correlation is approximately `r round(unname(cinema_correlation$estimate)^2 * 100, 1)`%, indicating that mean living standard alone accounts for very little of the linear variation in cinema distance.
+
+Statistical significance should therefore not be confused with a large or substantively important relationship.
+
+## Exploratory linear model
+
+```{r}
+#| label: cinema-regression
+
+cinema_model <- lm(
+  nearest_cinema_m ~
+    poverty_rate +
+    social_housing_rate +
+    ind,
+  data = st_drop_geometry(analysis)
+)
+
+cinema_model_summary <- summary(cinema_model)
+
+cinema_model_summary
+```
+
+The model explains approximately **`r round(cinema_model_summary$r.squared * 100, 1)`%** of the observed variation in distance to the nearest cinema (adjusted R² = `r round(cinema_model_summary$adj.r.squared, 3)`).
+
+Higher local population is associated with shorter cinema distances.
+
+Holding the other variables constant, a 10-percentage-point increase in poverty rate corresponds to approximately `r round(coef(cinema_model)["poverty_rate"] * 0.10)` metres difference in predicted cinema distance.
+
+The model therefore detects statistically significant relationships, but its low R² indicates that these variables explain only a small part of the geography of cinema accessibility.
+
+The model is exploratory rather than causal. Factors such as centrality, urban density, commercial geography, transport networks and historical development are likely to contribute substantially to the observed spatial patterns.
+
+# Discussion
+
+The analysis produces three main findings.
+
+First, **cultural accessibility in Paris is generally high when culture is treated as a single category**. The population-weighted mean distance to the nearest facility is only about 128 m. However, this headline figure is strongly affected by the large number of heritage sites and other common facility types.
+
+Second, **accessibility differs strongly according to the form of culture**. The geography of museums, cinemas, performing arts, books, parks and heritage sites cannot be adequately summarized by a single city-wide accessibility indicator.
+
+Third, **the relationship between socioeconomic conditions and cultural access is complex rather than a simple rich-versus-poor divide**. The highest-poverty group has relatively poor access to some categories, including museums, heritage locations and the parks represented in this dataset. However, other categories, such as performing arts and arts-and-creation facilities, show different or even opposite patterns. Overall accessibility is highest in the middle socioeconomic groups rather than at either extreme.
+
+These findings suggest that analyses of cultural inequality should distinguish between different forms of cultural infrastructure instead of assuming that "access to culture" represents a single spatial phenomenon.
+
+# Limitations
+
+Several limitations are important when interpreting these results.
+
+## Straight-line rather than travel distance
+
+Accessibility is measured as Euclidean distance between the centre of a 200 m grid cell and a facility. It does not account for the street network, walking routes, public transport, rivers, railway infrastructure or other physical barriers.
+
+A future extension could calculate walking or public-transport travel times.
+
+## Grid-cell approximation
+
+Residents are represented by the centroid of their 200 m grid cell rather than their actual residential location. The resulting spatial uncertainty is therefore of the same order as the grid resolution.
+
+## Administrative boundary
+
+Only cultural facilities located within Paris are included. Residents close to the municipal boundary may have access to facilities in neighbouring communes that are not represented in the analysis.
+
+Accessibility near the edge of Paris may therefore be underestimated.
+
+## Availability is not equivalent to effective access
+
+The presence of a nearby facility does not guarantee that it is practically accessible.
+
+The analysis does not measure:
+
+- admission price;
+- opening hours;
+- capacity;
+- accessibility for disabled visitors;
+- programming;
+- individual preferences;
+- actual attendance.
+
+It therefore measures **spatial availability**, not cultural participation.
+
+## Unequal category sizes
+
+The cultural categories differ greatly in size. Heritage contains almost two thousand locations, while categories such as arts and creation or parks and gardens contain very few observations in the source dataset.
+
+Results for small categories should therefore be interpreted cautiously and should not be understood as comprehensive measures of all such facilities in Paris.
+
+## Area-level socioeconomic indicators
+
+Socioeconomic variables describe 200 m geographic areas rather than individual residents.
+
+Associations at grid-cell level cannot be assumed to hold at individual level.
+
+## Poverty quintiles
+
+The poverty groups contain approximately equal numbers of grid cells, not equal numbers of residents. Population weighting is applied when calculating group accessibility statistics, but the quintile boundaries themselves are cell-based.
+
+## Spatial dependence
+
+Neighbouring grid cells are geographically related. Standard correlation tests and ordinary least-squares regression assume independent observations, an assumption that is unlikely to hold perfectly for spatial data.
+
+The inferential statistics in this report should therefore be treated as exploratory. A future version could explicitly test spatial autocorrelation and use spatial regression methods.
+
+## Social-housing indicator
+
+The current social-housing variable is constructed from the number of social-housing units relative to the number of households. Because these quantities do not use exactly the same unit of observation, this indicator should be treated as approximate. A future version should verify and use an appropriate housing-stock denominator before drawing substantive conclusions from this variable.
+
+# Conclusion
+
+Paris offers dense cultural infrastructure, but that infrastructure is not distributed uniformly and the concept of "cultural accessibility" changes substantially depending on the type of facility considered.
+
+Across the 200 m population grid, residents are on average geographically close to at least one cultural facility. Yet category-specific analysis reveals much larger differences for museums, cinemas, performing arts, books, parks and other forms of culture.
+
+Socioeconomic differences are also heterogeneous. The analysis does not show a simple gradient in which poorer areas are systematically farther from all forms of culture. Instead, the direction and magnitude of differences depend strongly on the cultural category considered.
+
+The results therefore highlight the importance of combining fine-scale geographic data with category-specific accessibility measures when studying inequalities in urban cultural infrastructure.
+
+Future work could extend this analysis using walking-network distances, facilities outside the Paris administrative boundary, finer distinctions between public and commercial cultural infrastructure, and spatial statistical models.
